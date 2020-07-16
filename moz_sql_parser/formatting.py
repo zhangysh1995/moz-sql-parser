@@ -92,37 +92,29 @@ def Operator(op, key=''):
 
     op = ' {0} '.format(op).upper()
 
-    def func(self, json):
+    def func(self, json, key=''):
         acc = []
-        unary = 0
 
-        if isinstance(json, dict):
-            json = list(json.items())[0][1]
-            unary = 1
-
-        for v in json:
-            sql = self.dispatch(v)
-            if isinstance(v, (text, int, float, long)):
-                acc.append(sql)
-                continue
-
-            p = precedence.get(first(v.keys()))
-            if p is None:
-                acc.append(sql)
-                continue
-            if p>=prec:
-                # fix
-                # acc.append("(" + sql + ")")
-                acc.append("(" + str(sql) + ")")
-            else:
-                acc.append(sql)
-        if unary:
-            if isinstance(acc[0], str):
-                acc[0] = "'{}'".format(acc[0])
-            return '{0} {1}'.format(op, acc[0])
-
+        if isinstance(json, str):
+            acc.append(json)
         else:
-            return op.join(acc)
+            for v in json:
+                sql = self.dispatch(v)
+                if isinstance(v, (text, int, float, long)):
+                    acc.append(sql)
+                    continue
+
+                p = precedence.get(first(v.keys()))
+                if p is None:
+                    acc.append(sql)
+                    continue
+                if p>=prec:
+                    # fix
+                    # acc.append("(" + sql + ")")
+                    acc.append("(" + str(sql) + ")")
+                else:
+                    acc.append(sql)
+        return op.join(acc)
     return func
 
 
@@ -201,7 +193,7 @@ class Formatter:
             parts.extend(['AS', self.dispatch(json['name'])])
         return ' '.join(parts)
 
-    def op(self, json):
+    def op(self, json, key=''):
         # print(json)
         if 'on' in json:
             return self._on(json)
@@ -218,9 +210,11 @@ class Formatter:
 
         ## cannot handle `neg`, no such attribute
         if hasattr(self, attr) and not key.startswith('_'):
-            if isinstance(value, dict):
-                method = getattr(self, attr, key)
-            return method(value)
+            if isinstance(value, dict) and key == 'neg':
+                return '-' + self.op(value)
+            else:
+                method = getattr(self, attr)
+                return method(value)
 
     # from here brackets are added to part of the operators
 
