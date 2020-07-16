@@ -41,6 +41,7 @@ def parse(sql):
             all_exceptions.clear()
             sql = sql.rstrip().rstrip(";")
             parse_result = SQLParser.parseString(sql, parseAll=True)
+            print(parse_result)
             return _scrub(parse_result)
         except Exception as e:
             if isinstance(e, ParseException) and e.msg == "Expected end of text":

@@ -15,7 +15,7 @@ import re
 
 from mo_future import string_types, text, first, long, is_text
 
-from moz_sql_parser.keywords import RESERVED, reserved_keywords, join_keywords, precedence, binary_ops
+from moz_sql_parser.keywords import RESERVED, join_keywords, precedence, binary_ops, unary_ops
 
 VALID = re.compile(r'^[a-zA-Z_]\w*$')
 
@@ -33,7 +33,7 @@ def should_quote(identifier):
     """
     return (
         identifier != '*' and (
-            not VALID.match(identifier) or identifier in reserved_keywords))
+            not VALID.match(identifier) or identifier in RESERVED))
 
 
 def split_field(field):
@@ -84,12 +84,21 @@ def escape(ident, ansi_quotes, should_quote):
     return join_field(esc(f) for f in split_field(ident))
 
 
-def Operator(op):
-    prec = precedence[binary_ops[op]]
+def Operator(op, key=''):
+    if key != '':
+        prec = precedence[unary_ops[op]]
+    else:
+        prec = precedence[binary_ops[op]]
+
     op = ' {0} '.format(op).upper()
 
     def func(self, json):
         acc = []
+        unary = 0
+
+        if isinstance(json, dict):
+            json = list(json.items())[0][1]
+            unary = 1
 
         for v in json:
             sql = self.dispatch(v)
@@ -102,17 +111,24 @@ def Operator(op):
                 acc.append(sql)
                 continue
             if p>=prec:
-                acc.append("(" + sql + ")")
+                # fix
+                # acc.append("(" + sql + ")")
+                acc.append("(" + str(sql) + ")")
             else:
                 acc.append(sql)
-        return op.join(acc)
+        if unary:
+            if isinstance(acc[0], str):
+                acc[0] = "'{}'".format(acc[0])
+            return '{0} {1}'.format(op, acc[0])
+
+        else:
+            return op.join(acc)
     return func
 
 
 class Formatter:
 
     clauses = [
-        'with_',
         'select',
         'from_',
         'where',
@@ -140,6 +156,7 @@ class Formatter:
     _and = Operator('and')
     _binary_and = Operator("&")
     _binary_or = Operator("|")
+    _neg = Operator("-")
 
     def __init__(self, ansi_quotes=True, should_quote=should_quote):
         self.ansi_quotes = ansi_quotes
@@ -168,6 +185,7 @@ class Formatter:
                 # Nested queries
                 return '({})'.format(self.format(json))
             else:
+                # print(json)
                 return self.op(json)
         if isinstance(json, string_types):
             return escape(json, self.ansi_quotes, self.should_quote)
@@ -184,20 +202,27 @@ class Formatter:
         return ' '.join(parts)
 
     def op(self, json):
+        # print(json)
         if 'on' in json:
             return self._on(json)
 
         if len(json) > 1:
             raise Exception('Operators should have only one key!')
+
         key, value = list(json.items())[0]
 
         # check if the attribute exists, and call the corresponding method;
         # note that we disallow keys that start with `_` to avoid giving access
         # to magic methods
         attr = '_{0}'.format(key)
+
+        ## cannot handle `neg`, no such attribute
         if hasattr(self, attr) and not key.startswith('_'):
-            method = getattr(self, attr)
+            if isinstance(value, dict):
+                method = getattr(self, attr, key)
             return method(value)
+
+    # from here brackets are added to part of the operators
 
         # treat as regular function call
         if isinstance(value, dict) and len(value) == 0:
@@ -206,22 +231,26 @@ class Formatter:
             return '{0}({1})'.format(key.upper(), self.dispatch(value))
 
     def _binary_not(self, value):
-        return '~{0}'.format(self.dispatch(value))
+        return '~({0})'.format(self.dispatch(value))
 
     def _exists(self, value):
-        return '{0} IS NOT NULL'.format(self.dispatch(value))
+        return '({0}) IS NOT NULL'.format(self.dispatch(value))
 
     def _missing(self, value):
-        return '{0} IS NULL'.format(self.dispatch(value))
+        # precedence of the operator must be preserved
+        return '({0}) IS NULL'.format(self.dispatch(value))
 
     def _like(self, pair):
-        return '{0} LIKE {1}'.format(self.dispatch(pair[0]), self.dispatch(pair[1]))
+        return '({0}) LIKE {1}'.format(self.dispatch(pair[0]), self.dispatch(pair[1]))
 
     def _nlike(self, pair):
-        return '{0} NOT LIKE {1}'.format(self.dispatch(pair[0]), self.dispatch(pair[1]))
+        if isinstance(pair, dict):
+            for key, item in pair.items():
+                return '({0}) NOT LIKE {1}'.format(self.dispatch(item[0]), self.dispatch(item[1]))
+        return '({0}) NOT LIKE {1}'.format(self.dispatch(pair[0]), self.dispatch(pair[1]))
 
     def _is(self, pair):
-        return '{0} IS {1}'.format(self.dispatch(pair[0]), self.dispatch(pair[1]))
+        return '({0}) IS ({1})'.format(self.dispatch(pair[0]), self.dispatch(pair[1]))
 
     def _in(self, json):
         valid = self.dispatch(json[1])
@@ -245,11 +274,8 @@ class Formatter:
         parts = ['CASE']
         for check in checks:
             if isinstance(check, dict):
-                if 'when' in check and 'then' in check:
-                    parts.extend(['WHEN', self.dispatch(check['when'])])
-                    parts.extend(['THEN', self.dispatch(check['then'])])
-                else:
-                    parts.extend(['ELSE', self.dispatch(check)])
+                parts.extend(['WHEN', self.dispatch(check['when'])])
+                parts.extend(['THEN', self.dispatch(check['then'])])
             else:
                 parts.extend(['ELSE', self.dispatch(check)])
         parts.append('END')
@@ -292,23 +318,17 @@ class Formatter:
         return ' UNION ALL '.join(self.query(query) for query in json)
 
     def query(self, json):
+        ## debug ##
+        # for clause in self.clauses:
+        #     for part in [getattr(self, clause)(json)]:
+        #         print(part, end=" >> ")
+        ## code ##
         return ' '.join(
             part
             for clause in self.clauses
             for part in [getattr(self, clause)(json)]
             if part
         )
-
-    def with_(self, json):
-        if 'with' in json:
-            with_ = json['with']
-            if not isinstance(with_, list):
-                with_ = [with_]
-            parts = ', '.join(
-                '{0} AS {1}'.format(part['name'], self.dispatch(part['value']))
-                for part in with_
-            )
-            return 'WITH {0}'.format(parts)
 
     def select(self, json):
         if 'select' in json:
