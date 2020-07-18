@@ -255,10 +255,10 @@ class Formatter:
         return '{0} NOT IN {1}'.format(self.dispatch(json[0]), valid)
 
     def _neg(self, json):
-        return '- {0}'.format(self.dispatch(json))
+        return '( - {0} )'.format(self.dispatch(json))
 
     def _not(self, json):
-        return 'NOT ({0})'.format(self.dispatch(json))
+        return '( NOT ( {0} ) )'.format(self.dispatch(json))
 
     def _case(self, checks):
         parts = ['CASE']
