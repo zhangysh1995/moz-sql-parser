@@ -108,7 +108,7 @@ def Operator(op):
                 acc.append("(" + str(sql) + ")")
             else:
                 acc.append(sql)
-        return op.join(acc)
+        return '({0})'.format(op.join(acc))
     return func
 
 
