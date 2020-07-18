@@ -273,7 +273,7 @@ class Formatter:
 
     def _literal(self, json):
         if isinstance(json, list):
-            return '(0}'.format(', '.join(self._literal(v) for v in json))
+            return '{0}'.format(', '.join(self._literal(v) for v in json))
         elif isinstance(json, string_types):
             return "'{0}'".format(json.replace("'", "''"))
         else:
