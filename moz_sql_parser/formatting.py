@@ -84,36 +84,30 @@ def escape(ident, ansi_quotes, should_quote):
     return join_field(esc(f) for f in split_field(ident))
 
 
-def Operator(op, key=''):
-    if key != '':
-        prec = precedence[unary_ops[op]]
-    else:
-        prec = precedence[binary_ops[op]]
+def Operator(op):
+    prec = precedence[binary_ops[op]]
 
     op = ' {0} '.format(op).upper()
 
-    def func(self, json, key=''):
+    def func(self, json):
         acc = []
 
-        if isinstance(json, str):
-            acc.append(json)
-        else:
-            for v in json:
-                sql = self.dispatch(v)
-                if isinstance(v, (text, int, float, long)):
-                    acc.append(sql)
-                    continue
+        for v in json:
+            sql = self.dispatch(v)
+            if isinstance(v, (text, int, float, long)):
+                acc.append(sql)
+                continue
 
-                p = precedence.get(first(v.keys()))
-                if p is None:
-                    acc.append(sql)
-                    continue
-                if p>=prec:
-                    # fix
-                    # acc.append("(" + sql + ")")
-                    acc.append("(" + str(sql) + ")")
-                else:
-                    acc.append(sql)
+            p = precedence.get(first(v.keys()))
+            if p is None:
+                acc.append(sql)
+                continue
+            if p>=prec:
+                # fix
+                # acc.append("(" + sql + ")")
+                acc.append("(" + str(sql) + ")")
+            else:
+                acc.append(sql)
         return op.join(acc)
     return func
 
@@ -148,7 +142,6 @@ class Formatter:
     _and = Operator('and')
     _binary_and = Operator("&")
     _binary_or = Operator("|")
-    _neg = Operator("-")
 
     def __init__(self, ansi_quotes=True, should_quote=should_quote):
         self.ansi_quotes = ansi_quotes
@@ -210,11 +203,8 @@ class Formatter:
 
         ## cannot handle `neg`, no such attribute
         if hasattr(self, attr) and not key.startswith('_'):
-            if isinstance(value, dict) and key == 'neg':
-                return '-' + self.op(value)
-            else:
-                method = getattr(self, attr)
-                return method(value)
+            method = getattr(self, attr)
+            return method(value)
 
     # from here brackets are added to part of the operators
 
@@ -253,7 +243,7 @@ class Formatter:
         if not valid.startswith('('):
             valid = '({0})'.format(valid)
 
-        return '{0} IN {1}'.format(json[0], valid)
+        return '{0} IN {1}'.format(self.dispatch(json[0]), valid)
 
     def _nin(self, json):
         valid = self.dispatch(json[1])
@@ -262,7 +252,13 @@ class Formatter:
         if not valid.startswith('('):
             valid = '({0})'.format(valid)
 
-        return '{0} NOT IN {1}'.format(json[0], valid)
+        return '{0} NOT IN {1}'.format(self.dispatch(json[0]), valid)
+
+    def _neg(self, json):
+        return '- {0}'.format(self.dispatch(json))
+
+    def _not(self, json):
+        return 'NOT ({0})'.format(self.dispatch(json))
 
     def _case(self, checks):
         parts = ['CASE']
@@ -277,17 +273,17 @@ class Formatter:
 
     def _literal(self, json):
         if isinstance(json, list):
-            return '({0})'.format(', '.join(self._literal(v) for v in json))
+            return '(0}'.format(', '.join(self._literal(v) for v in json))
         elif isinstance(json, string_types):
             return "'{0}'".format(json.replace("'", "''"))
         else:
             return str(json)
 
     def _between(self, json):
-        return '{0} BETWEEN {1} AND {2}'.format(self.dispatch(json[0]), self.dispatch(json[1]), self.dispatch(json[2]))
+        return '({0}) BETWEEN ({1}) AND ({2})'.format(self.dispatch(json[0]), self.dispatch(json[1]), self.dispatch(json[2]))
 
     def _not_between(self, json):
-        return '{0} NOT BETWEEN {1} AND {2}'.format(self.dispatch(json[0]), self.dispatch(json[1]), self.dispatch(json[2]))
+        return '({0}) NOT BETWEEN ({1}) AND ({2})'.format(self.dispatch(json[0]), self.dispatch(json[1]), self.dispatch(json[2]))
 
     def _on(self, json):
         detected_join = join_keywords & set(json.keys())
