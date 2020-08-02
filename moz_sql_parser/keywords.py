@@ -51,6 +51,17 @@ NULL = None
 FALSE = None
 TRUE = None
 
+# datatypes
+DECIMAL = None
+BINARY = None
+CHAR = None
+DATE = None
+DATETIME = None
+TIME = None
+JSON = None
+SIGNED = None
+UNSIGNED = None
+
 
 locs = locals()
 reserved = []
