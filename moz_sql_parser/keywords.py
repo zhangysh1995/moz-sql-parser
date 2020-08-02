@@ -44,6 +44,13 @@ USING = None
 WITH = None
 WHEN = None
 WHERE = None
+IS_NULL = None
+IS_FALSE = None
+IS_TRUE = None
+NULL = None
+FALSE = None
+TRUE = None
+
 
 locs = locals()
 reserved = []
