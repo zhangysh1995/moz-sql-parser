@@ -264,6 +264,11 @@ class Formatter:
         valid = self.dispatch(json[1])
         # `(10, 11, 12)` does not get parsed as literal, so it's formatted as
         # `10, 11, 12`. This fixes it.
+
+        # this adapt to the fix for a list of literals
+        if isinstance(valid, list):
+            valid = ', '.join(valid)
+
         if not valid.startswith('('):
             valid = '({0})'.format(valid)
 
@@ -273,6 +278,11 @@ class Formatter:
         valid = self.dispatch(json[1])
         # `(10, 11, 12)` does not get parsed as literal, so it's formatted as
         # `10, 11, 12`. This fixes it.
+
+        # this adapt to the fix for a list of literals
+        if isinstance(valid, list):
+            valid = ', '.join(valid)
+
         if not valid.startswith('('):
             valid = '({0})'.format(valid)
 
@@ -298,6 +308,9 @@ class Formatter:
     def _literal(self, json):
         if isinstance(json, list):
             # return '{0}'.format(', '.join(self._literal(v) for v in json))
+
+            # we should format the list of literals here,
+            # e.g. '111 <> foo' should not generate '111, foo'
             return ['{0}'.format(self._literal(v)) for v in json]
         elif isinstance(json, string_types):
             return "'{0}'".format(json.replace("'", "''"))
