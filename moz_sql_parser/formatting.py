@@ -33,7 +33,26 @@ def should_quote(identifier):
     """
     return (
         identifier != '*' and (
-            not VALID.match(identifier) or identifier in RESERVED))
+            VALID.match(identifier) or identifier in RESERVED))
+
+
+mysql_VALID = re.compile(r'^[a-zA-Z_]*\([0-9]*\)\w+$')
+
+
+def should_quote_mysql(identifier):
+    """
+    Return true if a given identifier should be quoted.
+
+    This is usually true when the identifier:
+
+      - is a reserved word
+      - contain spaces
+      - does match the regex `[a-zA-Z_]*\([0-9]*\)\w+`
+
+    """
+    return (
+        identifier != '*' and (
+            mysql_VALID.match(identifier) or identifier in RESERVED))
 
 
 def split_field(field):
