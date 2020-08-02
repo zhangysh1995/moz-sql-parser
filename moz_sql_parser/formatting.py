@@ -112,6 +112,10 @@ def Operator(op):
     def func(self, json):
         acc = []
 
+        if isinstance(json, dict):
+            operands = self.dispatch(json)
+            return '({0})'.format(op.join(operands))
+
         for v in json:
             sql = self.dispatch(v)
             if isinstance(v, (text, int, float, long)):
@@ -293,7 +297,8 @@ class Formatter:
 
     def _literal(self, json):
         if isinstance(json, list):
-            return '{0}'.format(', '.join(self._literal(v) for v in json))
+            # return '{0}'.format(', '.join(self._literal(v) for v in json))
+            return ['{0}'.format(self._literal(v)) for v in json]
         elif isinstance(json, string_types):
             return "'{0}'".format(json.replace("'", "''"))
         else:
