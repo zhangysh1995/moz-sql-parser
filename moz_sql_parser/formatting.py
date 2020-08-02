@@ -17,6 +17,7 @@ from mo_future import string_types, text, first, long, is_text
 
 from moz_sql_parser.keywords import RESERVED, join_keywords, precedence, binary_ops, unary_ops
 
+# VALID = re.compile(r'^[a-zA-Z_]\w*$')
 VALID = re.compile(r'^[a-zA-Z_]\w*$')
 
 
@@ -33,10 +34,10 @@ def should_quote(identifier):
     """
     return (
         identifier != '*' and (
-            VALID.match(identifier) or identifier in RESERVED))
+            mysql_VALID.match(identifier) or identifier in RESERVED))
 
 
-mysql_VALID = re.compile(r'^[a-zA-Z_]*\([0-9]*\)\w+$')
+mysql_VALID = re.compile(r'^[a-zA-Z_]+(\([0-9]*\))*\w*$')
 
 
 def should_quote_mysql(identifier):
