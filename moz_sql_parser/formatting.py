@@ -34,7 +34,7 @@ def should_quote(identifier):
     """
     return (
         identifier != '*' and (
-            mysql_VALID.match(identifier) or identifier in RESERVED))
+            mysql_VALID.match(identifier) and identifier not in RESERVED))
 
 
 mysql_VALID = re.compile(r'^[a-zA-Z_]+(\([0-9]*\))*\w*$')
