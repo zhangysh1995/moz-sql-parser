@@ -236,7 +236,10 @@ class Formatter:
         if isinstance(value, dict) and len(value) == 0:
             return key.upper() + "()"  # NOT SURE IF AN EMPTY dict SHOULD BE DELT WITH HERE, OR IN self.dispatch()
         else:
-            return '{0}({1})'.format(key.upper(), ', '.join(self.dispatch(value)))
+            dispatched = self.dispatch(value)
+            if isinstance(dispatched, list):
+                dispatched = ', '.join(dispatched)
+            return '{0}({1})'.format(key.upper(), dispatched)
 
     def _binary_not(self, value):
         return '~({0})'.format(self.dispatch(value))
