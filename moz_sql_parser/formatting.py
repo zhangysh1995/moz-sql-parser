@@ -286,7 +286,7 @@ class Formatter:
         if isinstance(valid, list):
             valid = ', '.join(valid)
 
-        if not valid.startswith('('):
+        if not valid.startswith('(') or not valid.endswith(')'):
             valid = '({0})'.format(valid)
 
         return '{0} NOT IN {1}'.format(self.dispatch(json[0]), valid)
