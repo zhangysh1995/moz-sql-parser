@@ -93,11 +93,19 @@ def to_json_operator(instring, tokensStart, retTokens):
             return {"missing": tok[0]}
         elif tok[0] == "null":
             return {"missing": tok[2]}
-    elif clean_op == "neq":
-        if tok[2] == "null":
-            return {"exists": tok[0]}
-        elif tok[0] == "null":
-            return {"exists": tok[2]}
+
+
+    # BUG FIX: `NULL != 1` is not `1 IS NOT NULL`,
+    # `NULL = 1` is not `1 IS NULL`.
+    #
+    # The following code mixes the operators.
+
+    # elif clean_op == "neq":
+    #     if tok[2] == "null":
+    #         return {"exists": tok[0]}
+    #     elif tok[0] == "null":
+    #         return {"exists": tok[2]}
+
     elif clean_op == "is":
         if tok[2] == 'null':
             return {"missing": tok[0]}

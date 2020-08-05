@@ -316,7 +316,7 @@ class Formatter:
             # e.g. '111 <> foo' should not generate '111, foo'
             return ['{0}'.format(self._literal(v)) for v in json]
         elif isinstance(json, string_types):
-            return "'{0}'".format(json.replace("'", "''"))
+            return "'{0}'".format(json.replace("'", "''").replace('null', 'NULL'))
         else:
             return str(json)
 
